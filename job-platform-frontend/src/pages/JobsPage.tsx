@@ -17,6 +17,7 @@ interface Job {
   posted_date: string;
   source: string;
   is_remote: boolean;
+  apply_url?: string;
 }
 
 const JobsPage: React.FC = () => {
@@ -25,6 +26,8 @@ const JobsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [isCollecting, setIsCollecting] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [showJobModal, setShowJobModal] = useState(false);
 
   useEffect(() => {
     fetchJobs();
@@ -59,6 +62,29 @@ const JobsPage: React.FC = () => {
     } finally {
       setIsCollecting(false);
     }
+  };
+
+  const handleViewDetails = (job: Job) => {
+    setSelectedJob(job);
+    setShowJobModal(true);
+  };
+
+  const handleApplyToJob = (job: Job) => {
+    if (job.apply_url) {
+      // Open the company's application page in a new tab
+      window.open(job.apply_url, '_blank', 'noopener,noreferrer');
+      toast.success(`Redirecting to ${job.company} careers page...`);
+    } else {
+      // Fallback to a generic search
+      const searchQuery = encodeURIComponent(`${job.title} ${job.company} careers`);
+      window.open(`https://www.google.com/search?q=${searchQuery}`, '_blank', 'noopener,noreferrer');
+      toast('Search opened for this position', { icon: 'ℹ️' });
+    }
+  };
+
+  const closeJobModal = () => {
+    setShowJobModal(false);
+    setSelectedJob(null);
   };
 
   const filteredJobs = jobs.filter(job => {
@@ -238,14 +264,97 @@ const JobsPage: React.FC = () => {
                 <div className="text-sm text-gray-500">
                   Job ID: {job.id.slice(0, 8)}
                 </div>
-                <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
-                  View Details
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleViewDetails(job)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                  >
+                    View Details
+                  </button>
+                  <button 
+                    onClick={() => handleApplyToJob(job)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-medium"
+                  >
+                    Apply Now
+                  </button>
+                </div>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Job Details Modal */}
+      {showJobModal && selectedJob && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedJob.title}</h2>
+                  <p className="text-lg text-indigo-600">{selectedJob.company}</p>
+                </div>
+                <button
+                  onClick={closeJobModal}
+                  className="text-gray-400 hover:text-gray-600 text-xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <h3 className="font-medium text-gray-900">Location</h3>
+                  <p className="text-gray-600">{selectedJob.is_remote ? 'Remote' : selectedJob.location}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Salary</h3>
+                  <p className="text-gray-600">{formatSalary(selectedJob.salary_min, selectedJob.salary_max)}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Job Type</h3>
+                  <p className="text-gray-600">{selectedJob.job_type}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Experience Level</h3>
+                  <p className="text-gray-600">{selectedJob.experience_level}</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="font-medium text-gray-900 mb-2">Job Description</h3>
+                <p className="text-gray-700">{selectedJob.description}</p>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="font-medium text-gray-900 mb-2">Required Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedJob.skills_required.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-500">
+                  Posted: {formatDate(selectedJob.posted_date)} | Source: {selectedJob.source}
+                </div>
+                <button
+                  onClick={() => handleApplyToJob(selectedJob)}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors font-medium"
+                >
+                  Apply Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
